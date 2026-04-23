@@ -465,8 +465,10 @@ function initMap(){
   const W=window.innerWidth, H=window.innerHeight;
   svg=d3.select('#map-svg').attr('width',W).attr('height',H);
 
-  proj=d3.geoMercator().center([8,52]).scale(Math.min(W,H)*3.0).translate([W*.46,H*.5]);
-  //proj=d3.geoMercator().center([16,52]).scale(Math.min(W,H)*1.6).translate([W*.46,H*.5]);
+  // Responsive scale: smaller on mobile, larger on desktop
+  const isMobile = W < 768;
+  const scaleFactor = isMobile ? 1.2 : 2.5;
+  proj=d3.geoMercator().center([8,52]).scale(Math.min(W,H)*scaleFactor).translate([W*.46,H*.5]);
   path=d3.geoPath().projection(proj);
 
   // Sea
@@ -528,10 +530,10 @@ function drawCompass(svg,cx,cy,r){
 }
 
 function drawLegend(svg,W,H){
-  //const g=svg.append('g').attr('transform',`translate(${W-218},${H-110})`).attr('opacity',.78);
-  //const g=svg.append('g').attr('transform',`translate(${W-160},${H-120})`).attr('opacity',.78);
-  const g=svg.append('g').attr('transform',`translate(${W-1220},${H-726})`).attr('opacity',.78);
-  //g.append('rect').attr('width',140).attr('height',100).attr('rx',4).attr('fill','rgba(14,8,0,.55)').attr('stroke','#c9a84c').attr('stroke-width',.8);
+  // Position legend in top-left corner
+  const marginLeft = Math.min(30, W * 0.05); // Small margin from left
+  const marginTop = Math.min(30, H * 0.05); // Small margin from top
+  const g=svg.append('g').attr('transform',`translate(${marginLeft},${marginTop})`).attr('opacity',.78);
   g.append('rect').attr('width',140).attr('height',100).attr('rx',4).attr('fill','rgba(14,8,0,.55)').attr('stroke','#c9a84c').attr('stroke-width',.8);
   g.append('line').attr('x1',14).attr('y1',22).attr('x2',52).attr('y2',22).attr('stroke','#cc2200').attr('stroke-width',2.8).attr('stroke-dasharray','7,4');
   g.append('text').attr('x',60).attr('y',26).attr('font-family','IM Fell English,serif').attr('font-size',13).attr('fill','#e0cfa0').text('Flight');
@@ -699,7 +701,9 @@ document.addEventListener('keydown',e=>{
 window.addEventListener('resize',()=>{
   const W=window.innerWidth,H=window.innerHeight;
   d3.select('#map-svg').attr('width',W).attr('height',H);
-  proj.translate([W*.46,H*.5]).scale(Math.min(W,H)*1.6);
+  const isMobile = W < 768;
+  const scaleFactor = isMobile ? 1.2 : 2.5;
+  proj.translate([W*.46,H*.5]).scale(Math.min(W,H)*scaleFactor);
   d3.selectAll('.country,.graticule,.country-border').attr('d',path);
 });
 </script>
