@@ -30,7 +30,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0d0800;font-family:
 .country-border{fill:none;stroke:#7a5518;stroke-width:.5}
 .route-line{fill:none;stroke-linecap:round;stroke-linejoin:round}
 .route-flight{stroke:#cc2200;stroke-width:3;opacity:.92}
-.route-car{stroke:#195905;stroke-width:3;opacity:.92}
+.route-car{stroke:#800080;stroke-width:3;opacity:.92}
 .route-train{stroke:#1a3a8a;stroke-width:3;opacity:.92}
 
 #panel{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(14,8,0,.93);border:1.5px solid #c9a84c;border-radius:3px;padding:18px 36px;text-align:center;max-width:680px;width:92vw;z-index:100;opacity:0;transition:opacity .7s ease;pointer-events:none;box-shadow:0 0 50px rgba(201,168,76,.1),inset 0 0 30px rgba(201,168,76,.04)}
@@ -410,7 +410,7 @@ const LOCS={
 };
 
 const STEPS=[
-  {id:'liverpool',loc:LOCS.liverpool,label:'LIVERPOOL',sub:'✈ Mon 15 June',route:null,music:'adventure',
+  {id:'liverpool',loc:LOCS.liverpool,label:'LIVERPOOL',sub:'Mon 15 June',route:null,music:'adventure',
    pDate:'Monday 15 June 2026',pTitle:'Liverpool — Departure 🛫',
    pDesc:"Your adventure begins at Liverpool John Lennon Airport. Something extraordinary waits to the east…",
    pHotel:'',card:null,dots:[0],final:false},
@@ -501,7 +501,8 @@ function initMap(){
     gMap.selectAll('.country').data(features).join('path').attr('class','country')
       .attr('d',path)
       .attr('fill',d=>{
-        if(['616','203'].includes(d.id?.toString())) return '#ddb86a'; // Poland, Czech - brighter
+        if(d.id?.toString()==='616') return '#c8a05e'; // Poland
+        if(d.id?.toString()==='203') return '#c8a05e'; // Czech Republic
         if(d.id?.toString()==='826') return '#d4b060'; // UK
         return '#c8a05e';
       });
@@ -539,7 +540,7 @@ function drawLegend(svg,W,H){
   g.append('text').attr('x',60).attr('y',26).attr('font-family','IM Fell English,serif').attr('font-size',13).attr('fill','#e0cfa0').text('Flight');
   g.append('line').attr('x1',14).attr('y1',44).attr('x2',52).attr('y2',44).attr('stroke','#1a3a8a').attr('stroke-width',2.8).attr('stroke-dasharray','4,4');
   g.append('text').attr('x',60).attr('y',48).attr('font-family','IM Fell English,serif').attr('font-size',13).attr('fill','#e0cfa0').text('Train');
-  g.append('line').attr('x1',14).attr('y1',66).attr('x2',52).attr('y2',66).attr('stroke','#195905').attr('stroke-width',2.8).attr('stroke-dasharray','4,4');
+  g.append('line').attr('x1',14).attr('y1',66).attr('x2',52).attr('y2',66).attr('stroke','#800080').attr('stroke-width',2.8).attr('stroke-dasharray','4,4');
   g.append('text').attr('x',60).attr('y',68).attr('font-family','IM Fell English,serif').attr('font-size',13).attr('fill','#e0cfa0').text('Taxi');
   g.append('circle').attr('cx',32).attr('cy',86).attr('r',5).attr('fill','#cc2200').attr('stroke','#f0c040').attr('stroke-width',1.5);
   g.append('text').attr('x',60).attr('y',88).attr('font-family','IM Fell English,serif').attr('font-size',13).attr('fill','#e0cfa0').text('Destination');
@@ -547,28 +548,33 @@ function drawLegend(svg,W,H){
 
 function drawRoute(from,to,type,cb){
   const [x1,y1]=proj(from), [x2,y2]=proj(to);
+  const dx_overall = x2 - x1;
   const mx=(x1+x2)/2+(y2-y1)*.12, my=(y1+y2)/2-Math.abs(x2-x1)*.12;
   const dStr=`M${x1},${y1} Q${mx},${my} ${x2},${y2}`;
 
   const line=gRoutes.append('path')
+    .datum({from,to})
     .attr('class',`route-line ${type==='flight'?'route-flight':type==='train'?'route-train':'route-car'}`)
     .attr('d',dStr).attr('stroke-dasharray','none');
 
   const len=line.node().getTotalLength();
   line.attr('stroke-dasharray',`${len} ${len}`).attr('stroke-dashoffset',len);
 
-  const emoji=type==='flight'?'✈':type==='train'?'🚂':'🚕';
+  const emoji=type==='flight'?'✈':type==='train'?'🚂':(type==='car' && dx_overall > 0 ? '➡️' : type==='car' ? '⬅️' : '🚕');
   if(movingIcon) movingIcon.remove();
-  movingIcon=gMarkers.append('text').attr('font-size',18).attr('text-anchor','middle').attr('dominant-baseline','middle').text(emoji);
+  movingIcon=gMarkers.append('foreignObject').attr('width',20).attr('height',20).attr('x',-10).attr('y',-10);
+  movingIcon.append('xhtml:div').style('font-size','18px').style('text-align','center').style('line-height','20px').style('color','black').text(emoji);
 
-  const dur=type==='flight'?2200:1600, t0=performance.now();
+  const dur=type==='flight'?5500:3200, t0=performance.now();
   function tick(now){
     const t=Math.min((now-t0)/dur,1), e=t<.5?2*t*t:-1+(4-2*t)*t;
     line.attr('stroke-dashoffset',len*(1-e));
     const p=line.node().getPointAtLength(len*e);
     const p2=line.node().getPointAtLength(Math.min(len*e+2,len));
     const ang=Math.atan2(p2.y-p.y,p2.x-p.x)*180/Math.PI;
-    movingIcon.attr('transform',`translate(${p.x},${p.y}) rotate(${type==='flight'?ang:0})`);
+    const rotate = type==='flight' ? ang : 0;
+    movingIcon.attr('transform',`translate(${p.x},${p.y}) rotate(${rotate})`);
+    movingIcon.select('div').style('transform',null);
     if(t<1){ requestAnimationFrame(tick); }
     else {
       if(movingIcon){movingIcon.remove();movingIcon=null;}
@@ -579,30 +585,100 @@ function drawRoute(from,to,type,cb){
 }
 
 function drawMarker(locLL,label,sub){
+  gMarkers.selectAll('.marker-group').remove();
   const [px,py]=proj(locLL);
-  const g=gMarkers.append('g').attr('transform',`translate(${px},${py})`).attr('opacity',0);
-  const rs=gMarkers.append('circle').attr('cx',px).attr('cy',py).attr('r',8).attr('fill','none').attr('stroke','#f0c040').attr('stroke-width',1.5).attr('opacity',0);
-  function pulse(){ rs.attr('r',8).attr('opacity',.8).transition().duration(1600).attr('r',26).attr('opacity',0).on('end',pulse); } pulse();
+  const g=gMarkers.append('g').attr('class','marker-group').datum({loc:locLL}).attr('transform',`translate(${px},${py})`).attr('opacity',0);
+  const rs=g.append('circle').attr('r',8).attr('fill','none').attr('stroke','#f0c040').attr('stroke-width',1.5).attr('opacity',0);
+  function pulse(){ rs.attr('r',8).attr('opacity',.8).transition().duration(1600).attr('r',26).attr('opacity',0).on('end',pulse); }
+  pulse();
 
   g.append('circle').attr('r',8).attr('fill','#cc2200').attr('stroke','#f0c040').attr('stroke-width',2.2);
   g.append('circle').attr('r',3.5).attr('fill','#f5e060');
 
   const fs=Math.max(11,Math.min(window.innerWidth,window.innerHeight)*0.018);
-
-  // Outline for readability
   ['#f5e6c8','#1a0800'].forEach((col,i)=>{
-    g.append('text').attr('y',-16).attr('text-anchor','middle')
+    g.append('text').attr('class','marker-label').attr('y',-16).attr('text-anchor','middle')
       .attr('font-family','Cinzel,serif').attr('font-weight',700).attr('font-size',fs)
       .attr('fill',col).attr('stroke',i===0?'#f5e6c8':'none').attr('stroke-width',i===0?3:0)
       .attr('paint-order',i===0?'stroke':'fill').text(label);
   });
   if(sub){
-    g.append('text').attr('y',-31).attr('text-anchor','middle')
+    g.append('text').attr('class','marker-sub').attr('y',-31).attr('text-anchor','middle')
       .attr('font-family','IM Fell English,serif').attr('font-style','italic').attr('font-size',Math.max(9,fs*.7))
       .attr('fill','#5a3000').text(sub);
   }
 
   g.transition().duration(500).attr('opacity',1);
+}
+
+function zoomToLocation(loc, route, callback) {
+  const W = window.innerWidth, H = window.innerHeight;
+  
+  let center, scale;
+  if (route) {
+    // Zoom to show the route - use lat/lng coordinates for center
+    const centerLng = (route.from[0] + route.to[0]) / 2;
+    const centerLat = (route.from[1] + route.to[1]) / 2;
+    center = [centerLng, centerLat];
+    
+    // Calculate pixel distance for appropriate zoom - ensure we zoom IN
+    const [x1, y1] = proj(route.from);
+    const [x2, y2] = proj(route.to);
+    const dx = Math.abs(x2 - x1);
+    const dy = Math.abs(y2 - y1);
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const isMobile = W < 768;
+    // Use higher base scale to ensure zoom in
+    scale = Math.max(Math.min(W, H) * (isMobile ? 2.0 : 4.0), distance * 4);
+  } else {
+    // Zoom to single location - loc is already [lng, lat]
+    center = loc;
+    const isMobile = W < 768;
+    scale = Math.min(W, H) * (isMobile ? 1.5 : 3.0);
+  }
+  
+  // Animate the projection change
+  const duration = 1200; // Slightly faster
+  const startCenter = proj.center();
+  const startScale = proj.scale();
+  
+  const startTime = performance.now();
+  function animate(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    // Ease function for smooth animation
+    const ease = progress < 0.5 ? 2 * progress * progress : -1 + (4 - 2 * progress) * progress;
+    
+    const currentCenter = [
+      startCenter[0] + (center[0] - startCenter[0]) * ease,
+      startCenter[1] + (center[1] - startCenter[1]) * ease
+    ];
+    const currentScale = startScale + (scale - startScale) * ease;
+    
+    proj.center(currentCenter).scale(currentScale);
+    
+    // Update all map elements
+    d3.selectAll('.country, .graticule, .country-border').attr('d', path);
+    d3.selectAll('.route-line').attr('d',d=>{
+      const [x1,y1]=proj(d.from); const [x2,y2]=proj(d.to);
+      const mx=(x1+x2)/2+(y2-y1)*.12, my=(y1+y2)/2-Math.abs(x2-x1)*.12;
+      return `M${x1},${y1} Q${mx},${my} ${x2},${y2}`;
+    });
+    d3.selectAll('.marker-group').attr('transform',d=>{
+      const [px,py]=proj(d.loc);
+      return `translate(${px},${py})`;
+    });
+    
+    if (progress >= 1) {
+      // Animation complete, call callback if provided
+      if (callback) callback();
+    } else {
+      requestAnimationFrame(animate);
+    }
+  }
+  
+  requestAnimationFrame(animate);
 }
 
 function showPanel(s){
@@ -611,6 +687,9 @@ function showPanel(s){
   document.getElementById('p-desc').textContent=s.pDesc;
   document.getElementById('p-hotel').textContent=s.pHotel;
   document.getElementById('panel').classList.add('vis');
+  if(!s.card && !s.final){
+    document.getElementById('next-btn').classList.add('vis');
+  }
 }
 
 function showCard(s){
@@ -705,6 +784,15 @@ window.addEventListener('resize',()=>{
   const scaleFactor = isMobile ? 1.2 : 2.5;
   proj.translate([W*.46,H*.5]).scale(Math.min(W,H)*scaleFactor);
   d3.selectAll('.country,.graticule,.country-border').attr('d',path);
+  d3.selectAll('.route-line').attr('d',d=>{
+    const [x1,y1]=proj(d.from); const [x2,y2]=proj(d.to);
+    const mx=(x1+x2)/2+(y2-y1)*.12, my=(y1+y2)/2-Math.abs(x2-x1)*.12;
+    return `M${x1},${y1} Q${mx},${my} ${x2},${y2}`;
+  });
+  d3.selectAll('.marker-group').attr('transform',d=>{
+    const [px,py]=proj(d.loc);
+    return `translate(${px},${py})`;
+  });
 });
 </script>
 </body>
