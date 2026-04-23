@@ -1,0 +1,707 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Happy 40th Birthday — Your Surprise Trip!</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=IM+Fell+English:ital@0;1&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:#0d0800;font-family:'IM Fell English',serif;color:#f5e6c8}
+
+#title-screen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 40%,#2e1800 0%,#0d0800 70%);z-index:200;cursor:pointer;transition:opacity 1.4s ease}
+#title-screen.out{opacity:0;pointer-events:none}
+.t-corner{position:absolute;font-family:'Cinzel',serif;font-size:clamp(18px,2.5vw,28px);color:#7a5c14;opacity:.5}
+.t-corner.tl{top:20px;left:28px}.t-corner.tr{top:20px;right:28px}.t-corner.bl{bottom:20px;left:28px}.t-corner.br{bottom:20px;right:28px}
+.t-pre{font-family:'Cinzel',serif;font-size:clamp(11px,1.8vw,16px);letter-spacing:.5em;color:#b8941e;margin-bottom:28px;animation:fadein 1s .4s both}
+.t-main{font-family:'Cinzel',serif;font-size:clamp(52px,10vw,120px);font-weight:900;line-height:.9;color:#f0c040;text-align:center;text-shadow:0 0 80px rgba(240,192,64,.35),0 6px 0 #6b4400,0 12px 0 #2a1800;animation:fadein 1.3s .9s both}
+.t-sub{font-size:clamp(15px,2.4vw,26px);font-style:italic;color:#e0cfa0;margin-top:22px;animation:fadein 1s 1.7s both}
+.t-div{width:280px;height:1px;background:linear-gradient(to right,transparent,#c9a84c,transparent);margin:26px 0;animation:fadein 1s 1.4s both}
+.t-click{font-family:'Cinzel',serif;font-size:clamp(9px,1.2vw,12px);letter-spacing:.35em;color:#9a7420;margin-top:48px;animation:pulse 2.2s 2.8s infinite both}
+
+#map-wrap{position:fixed;inset:0;opacity:0;transition:opacity 1.6s ease}
+#map-wrap.vis{opacity:1}
+#map-svg{width:100%;height:100%}
+
+.country{stroke:#7a5518;stroke-width:.35}
+.graticule{fill:none;stroke:#8a6a28;stroke-width:.2;opacity:.4}
+.country-border{fill:none;stroke:#7a5518;stroke-width:.5}
+.route-line{fill:none;stroke-linecap:round;stroke-linejoin:round}
+.route-flight{stroke:#cc2200;stroke-width:3;opacity:.92}
+.route-car{stroke:#195905;stroke-width:3;opacity:.92}
+.route-train{stroke:#1a3a8a;stroke-width:3;opacity:.92}
+
+#panel{position:fixed;bottom:26px;left:50%;transform:translateX(-50%);background:rgba(14,8,0,.93);border:1.5px solid #c9a84c;border-radius:3px;padding:18px 36px;text-align:center;max-width:680px;width:92vw;z-index:100;opacity:0;transition:opacity .7s ease;pointer-events:none;box-shadow:0 0 50px rgba(201,168,76,.1),inset 0 0 30px rgba(201,168,76,.04)}
+#panel.vis{opacity:1;pointer-events:all}
+.p-date{font-family:'Cinzel',serif;font-size:clamp(8px,1.2vw,11px);letter-spacing:.4em;color:#c9a84c;margin-bottom:5px}
+.p-title{font-family:'Cinzel',serif;font-size:clamp(20px,3.5vw,34px);font-weight:700;color:#f0c040;margin-bottom:7px;line-height:1.1}
+.p-desc{font-size:clamp(13px,1.7vw,16px);font-style:italic;color:#e0cfa0;line-height:1.55}
+.p-hotel{font-family:'Cinzel',serif;font-size:clamp(8px,1.1vw,11px);letter-spacing:.2em;color:#9a7420;margin-top:7px}
+
+#dest-wrap{position:fixed;inset:0;background:rgba(8,4,0,.88);z-index:150;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .7s ease}
+#dest-wrap.vis{opacity:1;pointer-events:all}
+.dest-card{border:2px solid #c9a84c;padding:clamp(24px,4vw,52px) clamp(28px,5vw,68px);text-align:center;max-width:660px;width:90vw;background:rgba(16,9,0,.97);position:relative}
+.dc-gem{position:absolute;font-size:16px;color:#c9a84c}
+.dc-gem.t{top:-10px;left:50%;transform:translateX(-50%)}.dc-gem.b{bottom:-10px;left:50%;transform:translateX(-50%)}
+.dc-gem.l{left:-10px;top:50%;transform:translateY(-50%)}.dc-gem.r{right:-10px;top:50%;transform:translateY(-50%)}
+.dc-icon{font-size:clamp(40px,7vw,72px);margin-bottom:14px;display:block}
+.dc-eye{font-family:'Cinzel',serif;font-size:clamp(8px,1.2vw,11px);letter-spacing:.45em;color:#c9a84c;margin-bottom:8px}
+.dc-name{font-family:'Cinzel',serif;font-size:clamp(30px,6vw,72px);font-weight:900;color:#f0c040;line-height:1;margin-bottom:18px;text-shadow:0 3px 0 #6b4400}
+.dc-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:0 0 22px}
+.dc-fact{background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.25);padding:10px 12px;border-radius:2px}
+.dc-fact-label{font-family:'Cinzel',serif;font-size:clamp(7px,1vw,9px);letter-spacing:.3em;color:#9a7420;margin-bottom:3px}
+.dc-fact-val{font-size:clamp(11px,1.6vw,14px);color:#f0e8d0;font-style:italic}
+.dc-btn{font-family:'Cinzel',serif;font-size:clamp(8px,1.2vw,12px);letter-spacing:.3em;color:#f0c040;border:1.5px solid #c9a84c;padding:11px 28px;cursor:pointer;background:transparent;transition:background .3s}
+.dc-btn:hover{background:rgba(201,168,76,.15)}
+
+#next-btn{position:fixed;bottom:26px;right:26px;z-index:100;font-family:'Cinzel',serif;font-size:clamp(8px,1.2vw,12px);letter-spacing:.3em;color:#f0c040;border:1.5px solid #c9a84c;padding:11px 22px;cursor:pointer;background:transparent;opacity:0;transition:opacity .6s ease,background .3s;pointer-events:none}
+#next-btn:hover{background:rgba(201,168,76,.15)}
+#next-btn.vis{opacity:1;pointer-events:all}
+
+#prog{position:fixed;top:20px;left:50%;transform:translateX(-50%);display:flex;gap:10px;z-index:100;opacity:0;transition:opacity .6s}
+#prog.vis{opacity:1}
+.prog-dot{width:9px;height:9px;border-radius:50%;border:1.5px solid #c9a84c;background:transparent;transition:background .4s}
+.prog-dot.on{background:#f0c040}
+
+#music-btn{position:fixed;top:18px;right:22px;z-index:300;font-family:'Cinzel',serif;font-size:clamp(8px,1.1vw,11px);letter-spacing:.25em;color:#9a7420;border:1px solid #7a5c14;padding:8px 16px;cursor:pointer;background:rgba(14,8,0,.7);transition:all .3s;border-radius:2px}
+#music-btn:hover{color:#f0c040;border-color:#c9a84c}
+
+#final{position:fixed;inset:0;background:radial-gradient(ellipse at 50% 40%,#2e1800,#0d0800);z-index:190;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:clamp(20px,4vw,50px);opacity:0;pointer-events:none;transition:opacity 1.3s ease}
+#final.vis{opacity:1;pointer-events:all}
+.f-icons{font-size:clamp(28px,5vw,52px);margin-bottom:20px;letter-spacing:.1em}
+.f-title{font-family:'Cinzel',serif;font-size:clamp(28px,6vw,72px);font-weight:900;color:#f0c040;text-shadow:0 0 60px rgba(240,192,64,.4);margin-bottom:14px;line-height:1}
+.f-sub{font-size:clamp(14px,2.2vw,22px);font-style:italic;color:#e0cfa0;max-width:520px;line-height:1.6;margin-bottom:30px}
+.f-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;max-width:780px;width:100%;margin-bottom:28px}
+.f-item{background:rgba(201,168,76,.07);border:1px solid rgba(201,168,76,.3);border-radius:2px;padding:14px 16px;text-align:left}
+.f-day{font-family:'Cinzel',serif;font-size:clamp(7px,1vw,10px);letter-spacing:.3em;color:#c9a84c;margin-bottom:5px}
+.f-ev{font-size:clamp(11px,1.4vw,13px);color:#f0e8d0;line-height:1.5}
+.f-restart{font-family:'Cinzel',serif;font-size:clamp(8px,1.1vw,11px);letter-spacing:.3em;color:#9a7420;border:1px solid #9a7420;padding:9px 22px;cursor:pointer;background:transparent;transition:all .3s}
+.f-restart:hover{color:#f0c040;border-color:#f0c040}
+
+@keyframes fadein{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes pulse{0%,100%{opacity:.25}50%{opacity:1}}
+</style>
+</head>
+<body>
+
+<audio id="adventure-audio" preload="auto">
+  <source src="adventure-music.mp3" type="audio/mpeg">
+</audio>
+
+<audio id="somber-audio" preload="auto">
+  <source src="somber-music.mp3" type="audio/mpeg">
+</audio>
+
+<audio id="close-audio" preload="auto">
+  <source src="close-music.mp3" type="audio/mpeg">
+</audio>
+
+<div id="title-screen">
+  <span class="t-corner tl">✦</span><span class="t-corner tr">✦</span>
+  <span class="t-corner bl">✦</span><span class="t-corner br">✦</span>
+  <div class="t-pre">an adventure awaits</div>
+  <div class="t-main">happy<br>40th</div>
+  <div class="t-div"></div>
+  <div class="t-sub">Your surprise birthday trip is about to be revealed…</div>
+  <div class="t-click">✦ &nbsp; click anywhere to begin &nbsp; ✦</div>
+</div>
+
+<div id="map-wrap"><svg id="map-svg"></svg></div>
+
+<div id="prog">
+  <div class="prog-dot" id="d0"></div><div class="prog-dot" id="d1"></div>
+  <div class="prog-dot" id="d2"></div><div class="prog-dot" id="d3"></div>
+  <div class="prog-dot" id="d4"></div>
+</div>
+
+<button id="music-btn" onclick="toggleMusic()">♪ &nbsp; MUSIC ON</button>
+
+<div id="panel">
+  <div class="p-date" id="p-date"></div>
+  <div class="p-title" id="p-title"></div>
+  <div class="p-desc" id="p-desc"></div>
+  <div class="p-hotel" id="p-hotel"></div>
+</div>
+
+<div id="dest-wrap">
+  <div class="dest-card">
+    <span class="dc-gem t">◆</span><span class="dc-gem b">◆</span>
+    <span class="dc-gem l">◆</span><span class="dc-gem r">◆</span>
+    <span class="dc-icon" id="dc-icon"></span>
+    <div class="dc-eye" id="dc-eye"></div>
+    <div class="dc-name" id="dc-name"></div>
+    <div class="dc-facts" id="dc-facts"></div>
+    <button class="dc-btn" onclick="closeDest()">Continue the journey ›</button>
+  </div>
+</div>
+
+<button id="next-btn" onclick="nextStep()">NEXT &nbsp;›</button>
+
+<div id="final">
+  <div class="f-icons">🎂 ✈️ 🏰 ❤️</div>
+  <div class="f-title">happy 40th birthday!</div>
+  <div class="f-sub">Pack your bags — your surprise adventure awaits…</div>
+  <div class="f-grid">
+    <div class="f-item"><div class="f-day">MON 15 JUNE</div><div class="f-ev">Liverpool → Kraków 🇵🇱<br>Explore Kazimierz<br>Stay: PURO Kraków</div></div>
+    <div class="f-item"><div class="f-day">TUE 16 JUNE</div><div class="f-ev">🕯 Auschwitz guided tour<br>🚂 Overnight sleeper train<br>Kraków → Prague 🇨🇿</div></div>
+    <div class="f-item"><div class="f-day">WED 17 JUNE</div><div class="f-ev">🏰 Prague sightseeing<br>Old Town & Charles Bridge<br>Stay: COSMOPOLITAN</div></div>
+    <div class="f-item"><div class="f-day">THU 18 JUNE</div><div class="f-ev">Prague → Manchester 🇬🇧<br>Home with incredible<br>memories forever ❤️</div></div>
+  </div>
+  <button class="f-restart" onclick="location.reload()">↺ &nbsp; Watch again</button>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+// CUSTOM AUDIO
+// ═════════════════════════════════════════════
+let currentAudio = null;
+let musicOn = false;
+let currentMode = 'adventure';
+
+function toggleMusic() {
+  musicOn = !musicOn;
+  document.getElementById('music-btn').textContent = musicOn ? '♪  MUSIC OFF' : '♪  MUSIC ON';
+
+  if (musicOn) {
+    startLoop();
+  } else {
+    if (currentAudio) currentAudio.pause();
+  }
+}
+
+function setMusicMode(mode) {
+    if (mode === currentMode) return;
+    currentMode = mode;
+    if (!musicOn) return;
+
+    if (currentAudio) {
+        currentAudio.pause();
+        //currentAudio.currentTime = 0;
+    }
+
+    setTimeout(() => { if (musicOn) startLoop(); }, 600);
+}
+
+function startLoop() {
+  if (!musicOn) return;
+  
+  const audioFile = currentMode === 'adventure' 
+    ? document.getElementById('adventure-audio'): currentMode === 'somber'
+    ? document.getElementById('somber-audio')
+    : document.getElementById('close-audio');
+    
+  currentAudio = audioFile;
+  currentAudio.currentTime = 0;
+  currentAudio.volume = 0.38;
+  currentAudio.loop = true;
+  currentAudio.play().catch(e => console.log('Audio play failed:', e));
+}
+
+// ═══════════════════════════════════════════════
+// AUDIO ENGINE — Web Audio API
+// ═══════════════════════════════════════════════
+/*let audioCtx=null, masterGain=null, musicOn=false, currentMode='adventure';
+let activeNodes=[], loopTimer=null;*/
+
+/* function initAudio(){
+  if(audioCtx) return;
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+  masterGain=audioCtx.createGain(); masterGain.gain.value=0;
+  masterGain.connect(audioCtx.destination);
+} */
+
+/* function toggleMusic(){
+  initAudio();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  musicOn=!musicOn;
+  document.getElementById('music-btn').textContent=musicOn?'♪  MUSIC OFF':'♪  MUSIC ON';
+  if(musicOn){ fadeGain(0.38,1.5); startLoop(); }
+  else { fadeGain(0,1.8); }
+} */
+
+/* function fadeGain(target,dur){
+  if(!masterGain) return;
+  const now=audioCtx.currentTime;
+  masterGain.gain.cancelScheduledValues(now);
+  masterGain.gain.setValueAtTime(masterGain.gain.value,now);
+  masterGain.gain.linearRampToValueAtTime(target,now+dur);
+} */
+
+/* function setMusicMode(mode){
+  if(mode===currentMode) return;
+  currentMode=mode;
+  if(!musicOn) return;
+  clearTimeout(loopTimer);
+  fadeNodes(1.5);
+  setTimeout(()=>{activeNodes=[];if(musicOn)startLoop();},1700);
+} */
+
+/* function fadeNodes(dur){
+  activeNodes.forEach(n=>{
+    try{
+      n.gain.gain.cancelScheduledValues(audioCtx.currentTime);
+      n.gain.gain.setValueAtTime(n.gain.gain.value,audioCtx.currentTime);
+      n.gain.gain.linearRampToValueAtTime(0,audioCtx.currentTime+dur);
+      n.osc.stop(audioCtx.currentTime+dur+0.05);
+    }catch(e){}
+  });
+  activeNodes=[];
+} */
+
+/* function note(freq,vol,start,dur,type,detune){
+  const o=audioCtx.createOscillator();
+  const g=audioCtx.createGain();
+  const f=audioCtx.createBiquadFilter();
+  f.type='lowpass'; f.frequency.value=1400;
+  o.type=type||'sine'; o.frequency.value=freq;
+  if(detune) o.detune.value=detune;
+  g.gain.setValueAtTime(0,start);
+  g.gain.linearRampToValueAtTime(vol,start+0.06);
+  g.gain.setValueAtTime(vol,start+dur-0.1);
+  g.gain.linearRampToValueAtTime(0,start+dur);
+  o.connect(f); f.connect(g); g.connect(masterGain);
+  o.start(start); o.stop(start+dur+0.05);
+  activeNodes.push({osc:o,gain:g});
+} */
+
+/* function snare(start,vol){
+  try{
+    const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*0.12),audioCtx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*(1-i/d.length)*0.8;
+    const s=audioCtx.createBufferSource();
+    const g=audioCtx.createGain(); g.gain.value=vol||0.14;
+    s.buffer=buf; s.connect(g); g.connect(masterGain); s.start(start);
+    activeNodes.push({osc:s,gain:g});
+  }catch(e){}
+} */
+
+/* // Indiana Jones-style adventure theme
+// Melody: Raiders March-inspired pattern in C major
+function playAdventure(){
+  const t=audioCtx.currentTime, b=60/136; // 136bpm
+  const totalBars=20, totalBeats=totalBars*4;
+
+  // Melody — brass-ish (sawtooth+triangle layer)
+  const mel=[
+    // [freq, startBeat, durBeats]
+    [392,0,1],[392,.5,.5],[392,1,.5],[523,1.5,2],     // G G G C
+    [440,4,1],[440,4.5,.5],[440,5,.5],[587,5.5,2],     // A A A D
+    [523,8,1],[440,8.75,.75],[392,9.5,.75],[523,10.25,2.75], // C A G C
+    [659,13,1],[587,14,1],[523,15,.5],[440,15.5,.5],[392,16,4], // E D C A G
+
+    [392,20,1],[392,20.5,.5],[392,21,.5],[523,21.5,2],
+    [440,24,1],[440,24.5,.5],[440,25,.5],[587,25.5,2],
+    [523,28,1],[659,29,1.5],[784,30.5,5.5],
+
+    [523,37,.75],[440,37.75,.75],[392,38.5,.75],[349,39.25,4.75],
+    [392,44,1],[523,45,1],[659,46,2],[523,48,4],
+    [392,52,1],[440,53,1],[523,54,2],[659,56,8],
+  ];
+  mel.forEach(([f,sb,db])=>{
+    const st=t+sb*b, dt=db*b;
+    note(f,0.07,st,dt,'sawtooth',0);
+    note(f,0.045,st,dt,'triangle',5);
+  });
+
+  // Counter-melody (quieter)
+  const cnt=[
+    [262,0,4],[330,4,4],[294,8,4],[349,12,4],
+    [262,16,4],[330,20,4],[294,24,4],[392,28,8],
+    [349,36,4],[330,40,4],[349,44,4],[392,48,16],
+  ];
+  cnt.forEach(([f,sb,db])=>note(f,0.04,t+sb*b,db*b,'triangle',0));
+
+  // Walking bass
+  const bass=[
+    [130,0,1],[130,1,1],[147,2,1],[130,3,1],
+    [110,4,1],[110,5,1],[123,6,1],[110,7,1],
+    [117,8,2],[130,10,2],[147,12,2],[130,14,2],
+    [130,16,1],[130,17,1],[147,18,1],[130,19,1],
+    [110,20,4],[117,24,4],[130,28,4],[147,32,4],
+    [130,36,4],[123,40,4],[130,44,4],[196,48,4],
+    [175,52,4],[196,56,8],
+  ];
+  bass.forEach(([f,sb,db])=>{
+    note(f,0.15,t+sb*b,db*b,'sine',0);
+    note(f,0.04,t+sb*b,db*b,'square',-8);
+  });
+
+  // Drums
+  for(let i=0;i<64;i++){
+    if(i%2===1) snare(t+i*b,0.13);     // snare on 2,4
+    if(i%4===0) note(80,0.2,t+i*b,b*.35,'sine',0); // kick
+    if(i%4===0) note(55,0.12,t+i*b+0.06,b*.25,'sine',0);
+  }
+
+  // Cymbal shimmer (high-freq noise)
+  for(let i=0;i<64;i+=2){
+    try{
+      const buf=audioCtx.createBuffer(1,Math.floor(audioCtx.sampleRate*0.08),audioCtx.sampleRate);
+      const d=buf.getChannelData(0);
+      for(let j=0;j<d.length;j++) d[j]=(Math.random()*2-1)*(1-j/d.length)*0.4;
+      const s=audioCtx.createBufferSource();
+      const hpf=audioCtx.createBiquadFilter(); hpf.type='highpass'; hpf.frequency.value=6000;
+      const g=audioCtx.createGain(); g.gain.value=0.06;
+      s.buffer=buf; s.connect(hpf); hpf.connect(g); g.connect(masterGain);
+      s.start(t+i*b); activeNodes.push({osc:s,gain:g});
+    }catch(e){}
+  }
+
+  return 64*b; // return loop duration
+} */
+
+/* // Somber — slow minor, D minor, very soft and reflective
+function playSomber(){
+  const t=audioCtx.currentTime;
+
+  // Slow, minor melody — molto adagio
+  const mel=[
+    [293.7,0,3.5],[261.6,3.5,3],[246.9,6.5,3.5],[220,10,5.5],
+    [246.9,15.5,3],[261.6,18.5,3],[293.7,21.5,6],[220,27.5,4],
+    [196,31.5,6.5],
+  ];
+  mel.forEach(([f,s,d])=>{
+    note(f,0.055,t+s,d,'sine',0);
+    note(f,0.035,t+s,d,'triangle',3);
+    note(f*2,0.015,t+s,d,'sine',0); // octave
+  });
+
+  // Harmony — minor third
+  const harm=[
+    [349.2,0,4],[311.1,4,3.5],[293.7,7.5,5.5],
+    [349.2,13,4],[311.1,17,4],[329.6,21,8],[293.7,29,9],
+  ];
+  harm.forEach(([f,s,d])=>note(f,0.03,t+s,d,'triangle',0));
+
+  // Pedal drone — D2
+  note(73.4,0.06,t,38,'sine',0);
+  note(73.4,0.035,t,38,'sine',7);
+  note(36.7,0.045,t,38,'sine',0); // sub octave
+
+  // Very slow, soft pizzicato-style plucks
+  [[293.7,2],[220,7],[246.9,12],[293.7,18],[220,24],[196,30]].forEach(([f,s])=>{
+    note(f,0.06,t+s,0.4,'triangle',0);
+    note(f,0.03,t+s+0.05,0.8,'sine',0);
+  });
+
+  return 38;
+} */
+
+/* function startLoop(){
+  if(!musicOn||!audioCtx) return;
+  let dur = currentMode==='adventure' ? playAdventure() : playSomber();
+  loopTimer=setTimeout(()=>{
+    if(musicOn){ fadeNodes(0.4); setTimeout(()=>{if(musicOn)startLoop();},500); }
+  },(dur-0.5)*1000);
+} */
+
+// ═══════════════════════════════════════════════
+// MAP + SEQUENCE
+// ═══════════════════════════════════════════════
+const LOCS={
+  liverpool:  [-2.978,53.418],
+  krakow:     [19.944,50.061],
+  auschwitz:  [19.203,50.027],
+  prague:     [14.418,50.076],
+  manchester: [-2.273,53.480],
+};
+
+const STEPS=[
+  {id:'liverpool',loc:LOCS.liverpool,label:'LIVERPOOL',sub:'✈ Mon 15 June',route:null,music:'adventure',
+   pDate:'Monday 15 June 2026',pTitle:'Liverpool — Departure 🛫',
+   pDesc:"Your adventure begins at Liverpool John Lennon Airport. Something extraordinary waits to the east…",
+   pHotel:'',card:null,dots:[0],final:false},
+  {id:'krakow',loc:LOCS.krakow,label:'KRAKÓW',sub:'15–16 June',
+   route:{from:LOCS.liverpool,to:LOCS.krakow,type:'flight'},music:'adventure',
+   pDate:'Monday 15 June — Evening',pTitle:'Kraków, Poland 🇵🇱',
+   pDesc:"You've landed in one of Europe's most enchanting cities. The candlelit streets of Kazimierz await.",
+   pHotel:'🏨  PURO Kraków Kazimierz',
+   card:{icon:'🇵🇱',eye:'First Destination',name:'Kraków',facts:[
+     {l:'Arriving',v:'Mon 15 June'},{l:'Hotel',v:'PURO Kraków Kazimierz'},
+     {l:'District',v:'Kazimierz — Jewish Quarter'},{l:'Tonight',v:'Explore the Rynek & old town'}]},
+   dots:[0,1],final:false},
+  {id:'auschwitz',loc:LOCS.auschwitz,label:'AUSCHWITZ',sub:'Tue 16 June',
+   route:{from:LOCS.krakow,to:LOCS.auschwitz,type:'car'},music:'somber',
+   pDate:'Tuesday 16 June — Morning',pTitle:'Auschwitz–Birkenau Memorial',
+   pDesc:"A guided tour of one of history's most important sites. A solemn, powerful, and unforgettable experience.",
+   pHotel:'',
+   card:{icon:'🕯️',eye:'Day Two',name:'Auschwitz',facts:[
+     {l:'Date',v:'Tue 16 June'},{l:'Format',v:'Guided tour'},
+     {l:'Site',v:'UNESCO World Heritage'},{l:'Purpose',v:'Remembrance & education'}]},
+   dots:[0,1,2],final:false},
+  {id:'krakow2',loc:LOCS.krakow,label:'KRAKÓW',sub:'16 June',
+   route:{from:LOCS.auschwitz,to:LOCS.krakow,type:'car'},music:'adventure',
+   pDate:'Tuesday 16 June - Afternoon',pTitle:'Return to Kraków',
+   pDesc:"After a reflective morning, return to Kraków for some well-deserved relaxation",
+   pHotel:'🏨  PURO Kraków Kazimierz',
+   card:{icon:'🇵🇱',eye:'Brief Return',name:'Kraków',facts:[
+    {l:'Activities',v:'Sightseeing'},{l:'Food',v:'Grab & Go'},
+    {l:'Plans',v:'Head to the station'},{l:'Purpose',v:'Tonight\'s sleeper train 🚂'}]},
+   dots:[0,1,2,3],final:false},
+  {id:'prague',loc:LOCS.prague,label:'PRAGUE',sub:'17–18 June',
+   route:{from:LOCS.krakow,to:LOCS.prague,type:'train'},music:'adventure',
+   pDate:'Tue 16 June (night) → Wed 17 June',pTitle:'🚂 Sleeper Train to Prague',
+   pDesc:"Fall asleep in Poland and wake in the Czech Republic. A full day exploring golden Prague awaits.",
+   pHotel:'🏨  COSMOPOLITAN Hotel Prague',
+   card:{icon:'🇨🇿',eye:'Final Destination',name:'Prague',facts:[
+     {l:'Arrival',v:'Wed 17 June (morning)'},{l:'Hotel',v:'COSMOPOLITAN Prague'},
+     {l:'See',v:'Old Town & Charles Bridge'},{l:'Depart',v:'Thu 18 June → Manchester'}]},
+   dots:[0,1,2,3,4],final:false},
+  {id:'home',loc:LOCS.manchester,label:'MANCHESTER',sub:'↩ Thu 18 June',
+   route:{from:LOCS.prague,to:LOCS.manchester,type:'flight'},music:'adventure',
+   pDate:'Thursday 18 June',pTitle:'Home 🏠',
+   pDesc:"Flying back to Manchester, hearts full of memories that will last forever.",
+   pHotel:'',card:null,dots:[0,1,2,3,4,5],final:true},
+];
+
+let proj, path, svg, gRoutes, gMarkers;
+let step=-1, busy=false, cardOpen=false;
+let movingIcon=null;
+
+function initMap(){
+  const W=window.innerWidth, H=window.innerHeight;
+  svg=d3.select('#map-svg').attr('width',W).attr('height',H);
+
+  proj=d3.geoMercator().center([8,52]).scale(Math.min(W,H)*3.0).translate([W*.46,H*.5]);
+  //proj=d3.geoMercator().center([16,52]).scale(Math.min(W,H)*1.6).translate([W*.46,H*.5]);
+  path=d3.geoPath().projection(proj);
+
+  // Sea
+  svg.append('rect').attr('width',W).attr('height',H).attr('fill','#4a6e96');
+
+  // Graticule
+  svg.append('path').datum(d3.geoGraticule().step([10,10])()).attr('class','graticule').attr('d',path);
+
+  const gMap=svg.append('g');
+  gRoutes=svg.append('g');
+  gMarkers=svg.append('g');
+
+  // Vignette defs
+  const defs=svg.append('defs');
+  const rg=defs.append('radialGradient').attr('id','vig').attr('cx','50%').attr('cy','50%').attr('r','72%');
+  rg.append('stop').attr('offset','50%').attr('stop-color','transparent');
+  rg.append('stop').attr('offset','100%').attr('stop-color','rgba(0,0,0,.65)');
+
+  svg.append('rect').attr('width',W).attr('height',H).attr('fill','rgba(165,110,30,.07)').attr('pointer-events','none');
+  svg.append('rect').attr('width',W).attr('height',H).attr('fill','url(#vig)').attr('pointer-events','none');
+
+  const r=Math.min(W,H)*.065;
+  drawCompass(svg, r+20, H-r-20, r);
+  drawLegend(svg, W, H);
+
+  // Load world TopoJSON
+  d3.json('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(world=>{
+    const features=topojson.feature(world,world.objects.countries).features;
+    const highlight=['616','203','826','276','250','724','040','756','528','056','348','703','705','643','804','112','233','428','440'];
+    gMap.selectAll('.country').data(features).join('path').attr('class','country')
+      .attr('d',path)
+      .attr('fill',d=>{
+        if(['616','203'].includes(d.id?.toString())) return '#ddb86a'; // Poland, Czech - brighter
+        if(d.id?.toString()==='826') return '#d4b060'; // UK
+        return '#c8a05e';
+      });
+    gMap.append('path')
+      .datum(topojson.mesh(world,world.objects.countries,(a,b)=>a!==b))
+      .attr('class','country-border').attr('d',path);
+  }).catch(()=>{
+    // Fallback text
+    gMap.append('text').attr('x',W/2).attr('y',H/2).attr('text-anchor','middle')
+      .attr('fill','#c9a84c').attr('font-family','Cinzel,serif').attr('font-size',16)
+      .text('Enable internet to load map');
+  });
+}
+
+function drawCompass(svg,cx,cy,r){
+  const g=svg.append('g').attr('transform',`translate(${cx},${cy})`).attr('opacity',.72);
+  g.append('circle').attr('r',r).attr('fill','rgba(14,8,0,.4)').attr('stroke','#9a7020').attr('stroke-width',1.2);
+  g.append('circle').attr('r',r*.82).attr('fill','none').attr('stroke','#9a7020').attr('stroke-width',.5).attr('opacity',.5);
+  [['N',0,-1,'#8B5E00',r*.34,700],['S',0,1,'#5a3800',r*.28,400],['E',1,0,'#5a3800',r*.26,400],['W',-1,0,'#5a3800',r*.26,400]]
+    .forEach(([l,dx,dy,col,fs,fw])=>{
+      g.append('text').attr('x',dx*r*.62).attr('y',dy*r*.62+fs*.35).attr('text-anchor','middle')
+        .attr('font-family','Cinzel,serif').attr('font-size',fs).attr('fill',col).attr('font-weight',fw).text(l);
+    });
+  g.append('polygon').attr('points',`0,${-r*.7} ${r*.11},0 0,${-r*.22} ${-r*.11},0`).attr('fill','#9a7020');
+  g.append('polygon').attr('points',`0,${r*.7} ${r*.11},0 0,${r*.22} ${-r*.11},0`).attr('fill','#5a3800').attr('opacity',.6);
+}
+
+function drawLegend(svg,W,H){
+  //const g=svg.append('g').attr('transform',`translate(${W-218},${H-110})`).attr('opacity',.78);
+  //const g=svg.append('g').attr('transform',`translate(${W-160},${H-120})`).attr('opacity',.78);
+  const g=svg.append('g').attr('transform',`translate(${W-1220},${H-726})`).attr('opacity',.78);
+  //g.append('rect').attr('width',140).attr('height',100).attr('rx',4).attr('fill','rgba(14,8,0,.55)').attr('stroke','#c9a84c').attr('stroke-width',.8);
+  g.append('rect').attr('width',140).attr('height',100).attr('rx',4).attr('fill','rgba(14,8,0,.55)').attr('stroke','#c9a84c').attr('stroke-width',.8);
+  g.append('line').attr('x1',14).attr('y1',22).attr('x2',52).attr('y2',22).attr('stroke','#cc2200').attr('stroke-width',2.8).attr('stroke-dasharray','7,4');
+  g.append('text').attr('x',60).attr('y',26).attr('font-family','IM Fell English,serif').attr('font-size',13).attr('fill','#e0cfa0').text('Flight');
+  g.append('line').attr('x1',14).attr('y1',44).attr('x2',52).attr('y2',44).attr('stroke','#1a3a8a').attr('stroke-width',2.8).attr('stroke-dasharray','4,4');
+  g.append('text').attr('x',60).attr('y',48).attr('font-family','IM Fell English,serif').attr('font-size',13).attr('fill','#e0cfa0').text('Train');
+  g.append('line').attr('x1',14).attr('y1',66).attr('x2',52).attr('y2',66).attr('stroke','#195905').attr('stroke-width',2.8).attr('stroke-dasharray','4,4');
+  g.append('text').attr('x',60).attr('y',68).attr('font-family','IM Fell English,serif').attr('font-size',13).attr('fill','#e0cfa0').text('Taxi');
+  g.append('circle').attr('cx',32).attr('cy',86).attr('r',5).attr('fill','#cc2200').attr('stroke','#f0c040').attr('stroke-width',1.5);
+  g.append('text').attr('x',60).attr('y',88).attr('font-family','IM Fell English,serif').attr('font-size',13).attr('fill','#e0cfa0').text('Destination');
+}
+
+function drawRoute(from,to,type,cb){
+  const [x1,y1]=proj(from), [x2,y2]=proj(to);
+  const mx=(x1+x2)/2+(y2-y1)*.12, my=(y1+y2)/2-Math.abs(x2-x1)*.12;
+  const dStr=`M${x1},${y1} Q${mx},${my} ${x2},${y2}`;
+
+  const line=gRoutes.append('path')
+    .attr('class',`route-line ${type==='flight'?'route-flight':type==='train'?'route-train':'route-car'}`)
+    .attr('d',dStr).attr('stroke-dasharray','none');
+
+  const len=line.node().getTotalLength();
+  line.attr('stroke-dasharray',`${len} ${len}`).attr('stroke-dashoffset',len);
+
+  const emoji=type==='flight'?'✈':type==='train'?'🚂':'🚕';
+  if(movingIcon) movingIcon.remove();
+  movingIcon=gMarkers.append('text').attr('font-size',18).attr('text-anchor','middle').attr('dominant-baseline','middle').text(emoji);
+
+  const dur=type==='flight'?2200:1600, t0=performance.now();
+  function tick(now){
+    const t=Math.min((now-t0)/dur,1), e=t<.5?2*t*t:-1+(4-2*t)*t;
+    line.attr('stroke-dashoffset',len*(1-e));
+    const p=line.node().getPointAtLength(len*e);
+    const p2=line.node().getPointAtLength(Math.min(len*e+2,len));
+    const ang=Math.atan2(p2.y-p.y,p2.x-p.x)*180/Math.PI;
+    movingIcon.attr('transform',`translate(${p.x},${p.y}) rotate(${type==='flight'?ang:0})`);
+    if(t<1){ requestAnimationFrame(tick); }
+    else {
+      if(movingIcon){movingIcon.remove();movingIcon=null;}
+      if(cb) cb();
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+function drawMarker(locLL,label,sub){
+  const [px,py]=proj(locLL);
+  const g=gMarkers.append('g').attr('transform',`translate(${px},${py})`).attr('opacity',0);
+  const rs=gMarkers.append('circle').attr('cx',px).attr('cy',py).attr('r',8).attr('fill','none').attr('stroke','#f0c040').attr('stroke-width',1.5).attr('opacity',0);
+  function pulse(){ rs.attr('r',8).attr('opacity',.8).transition().duration(1600).attr('r',26).attr('opacity',0).on('end',pulse); } pulse();
+
+  g.append('circle').attr('r',8).attr('fill','#cc2200').attr('stroke','#f0c040').attr('stroke-width',2.2);
+  g.append('circle').attr('r',3.5).attr('fill','#f5e060');
+
+  const fs=Math.max(11,Math.min(window.innerWidth,window.innerHeight)*0.018);
+
+  // Outline for readability
+  ['#f5e6c8','#1a0800'].forEach((col,i)=>{
+    g.append('text').attr('y',-16).attr('text-anchor','middle')
+      .attr('font-family','Cinzel,serif').attr('font-weight',700).attr('font-size',fs)
+      .attr('fill',col).attr('stroke',i===0?'#f5e6c8':'none').attr('stroke-width',i===0?3:0)
+      .attr('paint-order',i===0?'stroke':'fill').text(label);
+  });
+  if(sub){
+    g.append('text').attr('y',-31).attr('text-anchor','middle')
+      .attr('font-family','IM Fell English,serif').attr('font-style','italic').attr('font-size',Math.max(9,fs*.7))
+      .attr('fill','#5a3000').text(sub);
+  }
+
+  g.transition().duration(500).attr('opacity',1);
+}
+
+function showPanel(s){
+  document.getElementById('p-date').textContent=s.pDate;
+  document.getElementById('p-title').textContent=s.pTitle;
+  document.getElementById('p-desc').textContent=s.pDesc;
+  document.getElementById('p-hotel').textContent=s.pHotel;
+  document.getElementById('panel').classList.add('vis');
+}
+
+function showCard(s){
+  if(!s.card) return false;
+  const c=s.card;
+  document.getElementById('dc-icon').textContent=c.icon;
+  document.getElementById('dc-eye').textContent=c.eye;
+  document.getElementById('dc-name').textContent=c.name;
+  document.getElementById('dc-facts').innerHTML=c.facts.map(f=>
+    `<div class="dc-fact"><div class="dc-fact-label">${f.l}</div><div class="dc-fact-val">${f.v}</div></div>`
+  ).join('');
+  document.getElementById('dest-wrap').classList.add('vis');
+  cardOpen=true;
+  return true;
+}
+
+function closeDest(){
+  document.getElementById('dest-wrap').classList.remove('vis');
+  cardOpen=false;
+  document.getElementById('next-btn').classList.add('vis');
+}
+
+function updateDots(s){
+  for(let i=0;i<5;i++) document.getElementById('d'+i).classList.toggle('on',s.dots.includes(i));
+}
+
+function nextStep(){
+  if(busy||cardOpen) return;
+  step++;
+  if(step>=STEPS.length) return;
+  busy=true;
+  const s=STEPS[step];
+  document.getElementById('next-btn').classList.remove('vis');
+  document.getElementById('panel').classList.remove('vis');
+  updateDots(s);
+  setMusicMode(s.music);
+
+  function afterRoute(){
+    drawMarker(s.loc,s.label,s.sub);
+    setTimeout(()=>{
+      showPanel(s);
+      setTimeout(()=>{
+        busy=false;
+        if(s.card){ setTimeout(()=>showCard(s),900); }
+        else if(s.final){ setTimeout(()=>document.getElementById('final').classList.add('vis'),1000); }
+        else { document.getElementById('next-btn').classList.add('vis'); }
+      },400);
+    },500);
+  }
+
+  if(s.route){ setTimeout(()=>drawRoute(s.route.from,s.route.to,s.route.type,afterRoute),300); }
+  else { afterRoute(); }
+}
+
+// BOOT
+window.addEventListener('load',initMap);
+//document.getElementById('title-screen').addEventListener('click',()=>{
+document.getElementById('title-screen').addEventListener('click',()=>{
+    if (!musicOn) {
+        musicOn = true;
+        document.getElementById('music-btn').textContent = '♪  MUSIC OFF';
+        startLoop();
+    }
+  //initAudio();
+  /*if(audioCtx.state==='suspended') audioCtx.resume();
+  if(!musicOn){
+    musicOn=true;
+    document.getElementById('music-btn').textContent='♪  MUSIC OFF';
+    fadeGain(0.38,1.8);
+    startLoop();
+  }*/
+  document.getElementById('title-screen').classList.add('out');
+  setTimeout(()=>{
+    document.getElementById('title-screen').style.display='none';
+    document.getElementById('map-wrap').classList.add('vis');
+    document.getElementById('prog').classList.add('vis');
+    setTimeout(nextStep,900);
+  },1400);
+});
+
+document.addEventListener('keydown',e=>{
+  if(['ArrowRight','Space','Enter'].includes(e.code)){
+    e.preventDefault();
+    if(cardOpen) closeDest(); else nextStep();
+  }
+});
+
+window.addEventListener('resize',()=>{
+  const W=window.innerWidth,H=window.innerHeight;
+  d3.select('#map-svg').attr('width',W).attr('height',H);
+  proj.translate([W*.46,H*.5]).scale(Math.min(W,H)*1.6);
+  d3.selectAll('.country,.graticule,.country-border').attr('d',path);
+});
+</script>
+</body>
+</html>
